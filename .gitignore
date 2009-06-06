@@ -1,0 +1,8 @@
+*.py[co]
+*.sw[po]
+*~
+PYSMELLTAGS*
+_trial*
+*pid
+*log
+dropin.cache

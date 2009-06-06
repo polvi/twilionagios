@@ -1,0 +1,82 @@
+Twilio + Nagios = Easy phone based monitoring and alerts
+--------------------------------------------------------
+
+This package contains two pieces of software:
+
+1) A script used as a notification command for nagios, which integrates nagios and twilio
+2) A webserver which exposes nagios status files via Twilio XML
+
+Put together, it is possible to wire up nagios such that any host or service check will send notifications via twilio, i.e. call you. 
+
+Dependencies
+------------
+* A current version of twisted python
+    apt-get install python-twisted or http://twistedmatrix.com/trac/
+* Twilio python libraries
+    http://www.twilio.com/docs/libraries/
+* A nagios installation
+    apt-get install nagios3 or http://www.nagios.org/download/download.php
+
+Nagios Setup
+------------
+
+First, you must get nagios working. Included in this package is an example nagios config, which will be enough to get nagios monitoring ping and http on your local interface.
+
+  example config: examples/nagios.cfg
+
+After installing nagios, set a cfg_file option to point to the examples/nagios.cfg. The nagios conf is generally located at:
+
+  /etc/nagios/nagios.cfg
+
+After you add this line, your nagios config will look something like this:
+
+  cfg_file=/path/to/the/example/nagios.cfg
+  ...
+  object_cache_file=/opt/local/var/nagios/objects.cache
+  precached_object_file=/opt/local/var/nagios/objects.precache
+  resource_file=/opt/local/etc/nagios/resource.cfg
+  ... and so on ...
+
+For the purpose of testing, you should only have one cfg_file option, and no cfg_dir options. Will will restrict the nagios install to just the example nagios.cfg included with this distribution.
+
+The included nagios.cfg requires a few modifications to get fully working. The comments in example/nagios.cfg explain what needs to be changed.
+
+Next, you will need to update scripts/nagios_twilio_pager.py with your Twilio credentials and phone numbers. Should look something like this:
+
+  # Twilio REST API version
+  API_VERSION = '2008-08-01'
+  ACCOUNT_SID = 'YOUR SID HERE'
+  ACCOUNT_TOKEN = 'YOUR TOKEN HERE'
+  # needs to be registered with twillo
+  CALLER_ID = 'YOUR-CALLER-ID';
+
+  # this needs point to where you run your "twistd twilio_nagios" instance
+  MONITOR_URL = 'http://localhost:8080'
+
+Assuming you got all the paths setup in the nagios.cfg, you should be able to start nagios now.
+
+Twilio Responder
+----------------
+
+The second service is what service twilio hits to figure out what to say. This works by parsing the nagios status files, based on the params sent to it via twilio, and generating Twilio XML accordingly. 
+
+For testing purposes, you can start it with this command:
+
+  twistd -n twilio_nagios -o test/dat/objects.cache -s test/dat/status.dat 
+
+Then, navigate to:
+
+  http://localhost:8080/host/host/localhost
+
+And you should see Twilio XML:
+
+  <Response>
+    <Say>the host production database server is up</Say>
+  </Response>
+
+This webserver will need to be ran on a server that is accessible by Twilio. I.e. you will not be able to test this running locally, unless your local machine has a public, internet facing, ipaddress.
+
+How it works
+------------
+
+When nagios determines it is the time to send a notification it sends data to the nagios_twilio_pager.py script. This will fire off a request to Twilio, telling it to hit a specific URL for the host that had the problem. Twilio will then hit a url on the twilio_nagios responder, which will parse the nagios config and objects file to look up the current state. It then returns that information in Twilio XML, and the sysadmin gets alerted by a robot voice. Success.
