@@ -1,7 +1,5 @@
 #!/usr/bin/python
-from twisted.web import server, resource
 from twisted.web.resource import Resource
-from twisted.application import internet, service
 
 import re
 
